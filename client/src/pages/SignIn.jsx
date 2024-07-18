@@ -1,8 +1,8 @@
 
 function SignIn() {
   return (
-    <div>SignIn</div>
-  )
+    <div></div>
+  );
 }
 
-export default SignIn
+export default SignIn;
