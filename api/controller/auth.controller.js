@@ -65,3 +65,58 @@ export const signin = async (req, res, next) => {
         next(error);
     }
 };
+export const google = async (req, res, next) => {
+    const { email, name, googlePhotoURL } = req.body;
+    console.log('Google signup request body:', req.body); // Debugging statement
+
+    if (!email || !name) {
+        return next(errorHandler(400, 'Email and name are required'));
+    }
+
+    try {
+        const user = await User.findOne({ email });
+        console.log('Existing user:', user); // Debugging statement
+
+        if (user) {
+            // User exists, sign in
+            const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+            const { password, ...rest } = user._doc;
+            res.status(200).cookie('access_token', token, {
+                httpOnly: true,
+            }).json(rest);
+        } else {
+            // User does not exist, create new user
+            const generatedPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+            const hashPassword = bcryptjs.hashSync(generatedPassword, 10);
+            const username = name.toLowerCase().split(' ').join('') + Math.random().toString(9).slice(-4);
+
+            const newUser = new User({
+                username,
+                email,
+                password: hashPassword,
+                profilePicture: googlePhotoURL
+            });
+
+            console.log('New user details:', newUser); // Debugging statement
+
+            await newUser.save()
+                .then(savedUser => {
+                    console.log('User saved successfully:', savedUser); // Debugging statement
+                    const token = jwt.sign({ id: savedUser._id }, process.env.JWT_SECRET);
+                    const { password: pass, ...rest } = savedUser._doc;
+                    res.status(201).cookie('access_token', token, {
+                        httpOnly: true,
+                    }).json(rest);
+                })
+                .catch(error => {
+                    console.error('Error saving new user:', error); // Debugging statement
+                    next(errorHandler(500, 'Error saving new user'));
+                });
+        }
+    } catch (error) {
+        console.error('Error during Google signup:', error); // Debugging statement
+        next(errorHandler(500, 'Server error during Google signup'));
+    }
+};
+
+
